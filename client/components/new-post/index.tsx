@@ -1,11 +1,4 @@
-import {
-	Button,
-	useToasts,
-	ButtonDropdown,
-	Toggle,
-	Input,
-	useClickAway
-} from "@geist-ui/core"
+import { Button, useToasts, ButtonDropdown, Input } from "@geist-ui/core"
 import { useRouter } from "next/router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import generateUUID from "@lib/generate-uuid"
@@ -19,11 +12,11 @@ import type {
 	Document as DocumentType
 } from "@lib/types"
 import PasswordModal from "./password-modal"
-import getPostPath from "@lib/get-post-path"
 import EditDocumentList from "@components/edit-document-list"
 import { ChangeEvent } from "react"
 import DatePicker from "react-datepicker"
 import getTitleForPostCopy from "@lib/get-title-for-post-copy"
+import Description from "./description"
 
 const Post = ({
 	initialPost,
@@ -35,6 +28,7 @@ const Post = ({
 	const { setToast } = useToasts()
 	const router = useRouter()
 	const [title, setTitle] = useState<string>()
+	const [description, setDescription] = useState<string>()
 	const [expiresAt, setExpiresAt] = useState<Date | null>(null)
 
 	const emptyDoc = useMemo(
@@ -62,6 +56,7 @@ const Post = ({
 			)
 
 			setTitle(getTitleForPostCopy(initialPost.title))
+			setDescription(initialPost.description)
 		}
 	}, [emptyDoc, initialPost])
 
@@ -88,6 +83,7 @@ const Post = ({
 				},
 				body: JSON.stringify({
 					title,
+					description,
 					files: docs,
 					...data
 				})
@@ -95,7 +91,7 @@ const Post = ({
 
 			if (res.ok) {
 				const json = await res.json()
-				router.push(getPostPath(json.visibility, json.id))
+				router.push(`/post/${json.id}`)
 			} else {
 				const json = await res.json()
 				setToast({
@@ -106,7 +102,7 @@ const Post = ({
 				setSubmitting(false)
 			}
 		},
-		[docs, router, setToast, title]
+		[description, docs, router, setToast, title]
 	)
 
 	const [isSubmitting, setSubmitting] = useState(false)
@@ -173,18 +169,22 @@ const Post = ({
 		setSubmitting(false)
 	}
 
-	const submitPassword = useCallback(
-		(password: string) => onSubmit("protected", password),
-		[onSubmit]
-	)
+	const submitPassword = (password: string) => onSubmit("protected", password)
 
-	const onChangeExpiration = useCallback((date) => setExpiresAt(date), [])
+	const onChangeExpiration = useCallback((date: Date) => setExpiresAt(date), [])
 
 	const onChangeTitle = useCallback(
 		(e: ChangeEvent<HTMLInputElement>) => {
 			setTitle(e.target.value)
 		},
 		[setTitle]
+	)
+
+	const onChangeDescription = useCallback(
+		(e: ChangeEvent<HTMLInputElement>) => {
+			setDescription(e.target.value)
+		},
+		[setDescription]
 	)
 
 	const updateDocTitle = useCallback(
@@ -196,41 +196,32 @@ const Post = ({
 		[setDocs]
 	)
 
-	const updateDocContent = useCallback(
-		(i: number) => (content: string) => {
-			setDocs((docs) =>
-				docs.map((doc, index) => (i === index ? { ...doc, content } : doc))
-			)
-		},
-		[setDocs]
-	)
+	const updateDocContent = (i: number) => (content: string) => {
+		setDocs((docs) =>
+			docs.map((doc, index) => (i === index ? { ...doc, content } : doc))
+		)
+	}
 
-	const removeDoc = useCallback(
-		(i: number) => () => {
-			setDocs((docs) => docs.filter((_, index) => i !== index))
-		},
-		[setDocs]
-	)
+	const removeDoc = (i: number) => () => {
+		setDocs((docs) => docs.filter((_, index) => i !== index))
+	}
 
-	const uploadDocs = useCallback(
-		(files: DocumentType[]) => {
-			// if no title is set and the only document is empty,
-			const isFirstDocEmpty =
-				docs.length <= 1 && (docs.length ? docs[0].title === "" : true)
-			const shouldSetTitle = !title && isFirstDocEmpty
-			if (shouldSetTitle) {
-				if (files.length === 1) {
-					setTitle(files[0].title)
-				} else if (files.length > 1) {
-					setTitle("Uploaded files")
-				}
+	const uploadDocs = (files: DocumentType[]) => {
+		// if no title is set and the only document is empty,
+		const isFirstDocEmpty =
+			docs.length <= 1 && (docs.length ? docs[0].title === "" : true)
+		const shouldSetTitle = !title && isFirstDocEmpty
+		if (shouldSetTitle) {
+			if (files.length === 1) {
+				setTitle(files[0].title)
+			} else if (files.length > 1) {
+				setTitle("Uploaded files")
 			}
+		}
 
-			if (isFirstDocEmpty) setDocs(files)
-			else setDocs((docs) => [...docs, ...files])
-		},
-		[docs, title]
-	)
+		if (isFirstDocEmpty) setDocs(files)
+		else setDocs((docs) => [...docs, ...files])
+	}
 
 	// pasted files
 	// const files = e.clipboardData.files as File[]
@@ -284,6 +275,7 @@ const Post = ({
 	return (
 		<div style={{ paddingBottom: 150 }}>
 			<Title title={title} onChange={onChangeTitle} />
+			<Description description={description} onChange={onChangeDescription} />
 			<FileDropzone setDocs={uploadDocs} />
 			<EditDocumentList
 				onPaste={onPaste}
@@ -336,14 +328,14 @@ const Post = ({
 						/>
 					}
 					<ButtonDropdown loading={isSubmitting} type="success">
+						<ButtonDropdown.Item onClick={() => onSubmit("unlisted")}>
+							Create Unlisted
+						</ButtonDropdown.Item>
 						<ButtonDropdown.Item main onClick={() => onSubmit("private")}>
 							Create Private
 						</ButtonDropdown.Item>
 						<ButtonDropdown.Item onClick={() => onSubmit("public")}>
 							Create Public
-						</ButtonDropdown.Item>
-						<ButtonDropdown.Item onClick={() => onSubmit("unlisted")}>
-							Create Unlisted
 						</ButtonDropdown.Item>
 						<ButtonDropdown.Item onClick={() => onSubmit("protected")}>
 							Create with Password

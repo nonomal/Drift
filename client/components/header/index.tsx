@@ -1,3 +1,5 @@
+'use client';
+
 import {
 	ButtonGroup,
 	Button,
@@ -88,12 +90,12 @@ const Header = () => {
 					value: "yours",
 					href: "/mine"
 				},
-				// {
-				//     name: 'settings',
-				//     icon: <SettingsIcon />,
-				//     value: 'settings',
-				//     href: '/settings'
-				// },
+				{
+					name: "settings",
+					icon: <SettingsIcon />,
+					value: "settings",
+					href: "/settings"
+				},
 				{
 					name: "sign out",
 					icon: <SignOutIcon />,
@@ -168,19 +170,18 @@ const Header = () => {
 				)
 			} else if (tab.href) {
 				return (
-					<Link key={tab.value} href={tab.href}>
-						<a className={styles.tab}>
-							<Button
-								className={activeStyle}
-								auto={isMobile ? false : true}
-								icon={tab.icon}
-								shadow={false}
-							>
-								{tab.name ? tab.name : undefined}
-							</Button>
-						</a>
-					</Link>
-				)
+                    (<Link key={tab.value} href={tab.href} className={styles.tab}>
+                        <Button
+                            className={activeStyle}
+                            auto={isMobile ? false : true}
+                            icon={tab.icon}
+                            shadow={false}
+                        >
+                            {tab.name ? tab.name : undefined}
+                        </Button>
+
+                    </Link>)
+                );
 			}
 		},
 		[isMobile, onTabChange, router.pathname]

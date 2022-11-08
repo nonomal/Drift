@@ -4,7 +4,7 @@ import DocumentComponent from "@components/view-document"
 import styles from "./post-page.module.css"
 import homeStyles from "@styles/Home.module.css"
 
-import type { File, Post } from "@lib/types"
+import type { File, Post, PostVisibility } from "@lib/types"
 import { Page, Button, Text, ButtonGroup, useMediaQuery } from "@geist-ui/core"
 import { useEffect, useState } from "react"
 import Archive from "@geist-ui/icons/archive"
@@ -16,24 +16,28 @@ import { useRouter } from "next/router"
 import ExpirationBadge from "@components/badges/expiration-badge"
 import CreatedAgoBadge from "@components/badges/created-ago-badge"
 import Cookies from "js-cookie"
-import getPostPath from "@lib/get-post-path"
+import PasswordModalPage from "./password-modal-wrapper"
+import VisibilityControl from "@components/badges/visibility-control"
 
 type Props = {
 	post: Post
+	isProtected?: boolean
 }
 
-const PostPage = ({ post }: Props) => {
-	const router = useRouter()
-
-	const isMobile = useMediaQuery("mobile")
+const PostPage = ({ post: initialPost, isProtected }: Props) => {
+	const [post, setPost] = useState<Post>(initialPost)
+	const [visibility, setVisibility] = useState<PostVisibility>(post.visibility)
 	const [isExpired, setIsExpired] = useState(
 		post.expiresAt ? new Date(post.expiresAt) < new Date() : null
 	)
 	const [isLoading, setIsLoading] = useState(true)
+	const [isOwner] = useState(
+		post.users ? post.users[0].id === Cookies.get("drift-userid") : false
+	)
+	const router = useRouter()
+	const isMobile = useMediaQuery("mobile")
+
 	useEffect(() => {
-		const isOwner = post.users
-			? post.users[0].id === Cookies.get("drift-userid")
-			: false
 		if (!isOwner && isExpired) {
 			router.push("/expired")
 		}
@@ -55,7 +59,7 @@ const PostPage = ({ post }: Props) => {
 		return () => {
 			if (interval) clearInterval(interval)
 		}
-	}, [isExpired, post.expiresAt, post.users, router])
+	}, [isExpired, isOwner, post.expiresAt, post.users, router])
 
 	const download = async () => {
 		if (!post.files) return
@@ -80,9 +84,15 @@ const PostPage = ({ post }: Props) => {
 		router.push(`/new/from/${post.id}`)
 	}
 
+	const viewParentClick = () => {
+		router.push(`/post/${post.parent!.id}`)
+	}
+
 	if (isLoading) {
 		return <></>
 	}
+
+	const isAvailable = !isExpired && !isProtected && post.title
 
 	return (
 		<Page width={"100%"}>
@@ -91,7 +101,7 @@ const PostPage = ({ post }: Props) => {
 				description={post.description}
 				isPrivate={false}
 			/>
-
+			{!isAvailable && <PasswordModalPage setPost={setPost} />}
 			<Page.Content className={homeStyles.main}>
 				<div className={styles.header}>
 					<span className={styles.buttons}>
@@ -111,15 +121,7 @@ const PostPage = ({ post }: Props) => {
 								Edit a Copy
 							</Button>
 							{post.parent && (
-								<Button
-									auto
-									icon={<Parent />}
-									onClick={() =>
-										router.push(
-											getPostPath(post.parent!.visibility, post.parent!.id)
-										)
-									}
-								>
+								<Button auto icon={<Parent />} onClick={viewParentClick}>
 									View Parent
 								</Button>
 							)}
@@ -137,12 +139,17 @@ const PostPage = ({ post }: Props) => {
 					<span className={styles.title}>
 						<Text h3>{post.title}</Text>
 						<span className={styles.badges}>
-							<VisibilityBadge visibility={post.visibility} />
+							<VisibilityBadge visibility={visibility} />
 							<CreatedAgoBadge createdAt={post.createdAt} />
 							<ExpirationBadge postExpirationDate={post.expiresAt} />
 						</span>
 					</span>
 				</div>
+				{post.description && (
+					<div>
+						<Text p>{post.description}</Text>
+					</div>
+				)}
 				{/* {post.files.length > 1 && <FileTree files={post.files} />} */}
 				{post.files?.map(({ id, content, title }: File) => (
 					<DocumentComponent
@@ -153,6 +160,15 @@ const PostPage = ({ post }: Props) => {
 						content={content}
 					/>
 				))}
+				{isOwner && (
+					<span className={styles.controls}>
+						<VisibilityControl
+							postId={post.id}
+							visibility={visibility}
+							setVisibility={setVisibility}
+						/>
+					</span>
+				)}
 				<ScrollToTop />
 			</Page.Content>
 		</Page>

@@ -5,6 +5,7 @@ import "react-loading-skeleton/dist/skeleton.css"
 import Head from "next/head"
 import { ThemeProvider } from "next-themes"
 import App from "@components/app"
+import React from "react"
 
 type AppProps<P = any> = {
 	pageProps: P

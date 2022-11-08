@@ -1,4 +1,4 @@
-import { Text, useTheme, useToasts } from "@geist-ui/core"
+import { Text, useMediaQuery, useTheme, useToasts } from "@geist-ui/core"
 import { memo } from "react"
 import { useDropzone } from "react-dropzone"
 import styles from "./drag-and-drop.module.css"
@@ -9,10 +9,14 @@ import {
 	allowedFileNames,
 	allowedFileExtensions
 } from "@lib/constants"
+import byteToMB from "@lib/byte-to-mb"
 
 function FileDropzone({ setDocs }: { setDocs: (docs: Document[]) => void }) {
 	const { palette } = useTheme()
 	const { setToast } = useToasts()
+	const isMobile = useMediaQuery("xs", {
+		match: "down"
+	})
 	const onDrop = async (acceptedFiles: File[]) => {
 		const newDocs = await Promise.all(
 			acceptedFiles.map((file) => {
@@ -40,9 +44,6 @@ function FileDropzone({ setDocs }: { setDocs: (docs: Document[]) => void }) {
 	}
 
 	const validator = (file: File) => {
-		const byteToMB = (bytes: number) =>
-			Math.round((bytes / 1024 / 1024) * 100) / 100
-
 		// TODO: make this configurable
 		const maxFileSize = 50000000
 		if (file.size > maxFileSize) {
@@ -86,6 +87,7 @@ function FileDropzone({ setDocs }: { setDocs: (docs: Document[]) => void }) {
 		</li>
 	))
 
+	const verb = isMobile ? "tap" : "click"
 	return (
 		<div className={styles.container}>
 			<div
@@ -97,7 +99,7 @@ function FileDropzone({ setDocs }: { setDocs: (docs: Document[]) => void }) {
 			>
 				<input {...getInputProps()} />
 				{!isDragActive && (
-					<Text p>Drag some files here, or click to select files</Text>
+					<Text p>Drag some files here, or {verb} to select files</Text>
 				)}
 				{isDragActive && <Text p>Release to drop the files here</Text>}
 			</div>
